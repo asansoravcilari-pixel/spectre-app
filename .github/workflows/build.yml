@@ -24,11 +24,9 @@ jobs:
           flutter-version: '3.24.0'
           channel: 'stable'
 
-      - name: Scaffold Android
+      - name: Android Altyapisini Kur
         run: |
-          flutter create --project-name=spectre_app --platforms=android --org=com.spectre.app temp_proj
-          cp -r temp_proj/android ./
-          rm -rf temp_proj
+          flutter create . --project-name=spectre_app --platforms=android --org=com.spectre.app --overwrite
           flutter pub get
 
       - name: Build APK
