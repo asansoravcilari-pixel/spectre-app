@@ -1,4 +1,4 @@
-name: Build APK
+name: Build Vision AI APK
 
 on:
   push:
@@ -8,30 +8,58 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
+
     steps:
-      - name: Checkout
+      - name: Kodu Cek
         uses: actions/checkout@v4
 
-      - name: Setup Java
+      - name: Java 17 Kur
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Flutter
+      - name: Flutter Kur
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.24.0'
           channel: 'stable'
 
-      - name: Android Altyapisi ve Ikon Uretimi
+      - name: Android Projesi, Tum Izinler ve Ikon Uretimi
         run: |
-          # Yalnizca android klasoru yoksa olustur, main.dart ve mevcut dosyalari asla silme
+          # Android klasoru yoksa olustur, varsa main.dart ve mevcut dosyalari asla silme
           if [ ! -d "android" ]; then
-            flutter create . --project-name=spectre_app --platforms=android --org=com.spectre.app
+            flutter create . --project-name=spectre_duo --platforms=android --org=com.spectre.duo
           fi
+          
+          # AndroidManifest.xml dosyasina tum izinleri ve HTTP iletisim iznini ekle
+          python3 -c '
+          path = "android/app/src/main/AndroidManifest.xml"
+          with open(path, "r", encoding="utf-8") as f:
+              c = f.read()
 
-          # Ozel SPECTRE Neon AI Uygulama Ikonu Uret
+          permissions = """
+              <uses-permission android:name="android.permission.INTERNET"/>
+              <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+              <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+              <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"/>
+              <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+          """
+
+          # Izinleri <manifest> icine ekle
+          if "android.permission.RECORD_AUDIO" not in c:
+              c = c.replace("<application", permissions + "\n    <application")
+
+          # HTTP ve yerel IP baglantisi (cleartext) iznini ekle
+          if "usesCleartextTraffic" not in c:
+              c = c.replace("<application", "<application android:usesCleartextTraffic=\"true\"")
+
+          with open(path, "w", encoding="utf-8") as f:
+              f.write(c)
+          '
+          
+          # Ozel Siber Neon SPECTRE AI Uygulama Ikonu Olustur
           python3 -c '
           import os
           from PIL import Image, ImageDraw
@@ -49,20 +77,25 @@ jobs:
               os.makedirs(target_dir, exist_ok=True)
               img = Image.new("RGBA", (size, size), (15, 21, 39, 255))
               draw = ImageDraw.Draw(img)
+              
+              # Dis neon mor cember
               margin = int(size * 0.1)
               draw.ellipse([margin, margin, size - margin, size - margin], outline=(108, 92, 231, 255), width=max(2, int(size * 0.05)))
+              
+              # Ic parlayan AI vizyon gozu
               inner_margin = int(size * 0.3)
               draw.ellipse([inner_margin, inner_margin, size - inner_margin, size - inner_margin], fill=(162, 155, 254, 255))
+              
               img.save(os.path.join(target_dir, "ic_launcher.png"))
           '
-
+          
           flutter pub get
 
-      - name: Build APK
+      - name: APK Derle (Debug)
         run: flutter build apk --debug
 
-      - name: Upload APK
+      - name: APK Yayinla
         uses: actions/upload-artifact@v4
         with:
-          name: Spectre-Mobile-APK
+          name: SPECTRE-Vision-APK
           path: build/app/outputs/flutter-apk/app-debug.apk
