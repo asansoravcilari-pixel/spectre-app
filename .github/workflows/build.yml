@@ -1,4 +1,4 @@
-name: Build Spectre APK
+name: Build Spectre Central APK
 
 on:
   workflow_dispatch:
@@ -10,18 +10,12 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
 
     steps:
       - name: Kodu Çek
         uses: actions/checkout@v4
-
-      - name: Python Kurulumu ve Pillow (PIL)
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install -y python3-pip python3-pil
-          python3 -m pip install --break-system-packages Pillow || pip install Pillow || true
 
       - name: Java 17 Kurulumu
         uses: actions/setup-java@v4
@@ -29,39 +23,29 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Android SDK Kurulumu
-        uses: android-actions/setup-android@v3
-
-      - name: Android Platform Bileşenlerini Yükle
+      - name: Android Lisanslarını Onayla
         run: |
-          yes | sdkmanager --licenses || true
-          sdkmanager "platforms;android-35" "build-tools;34.0.0"
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-35" "build-tools;34.0.0"
 
-      - name: Gradle Kurulumu
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.9'
-
-      - name: Testleri Çalıştır
+      - name: Python Onay Testleri
         run: |
           if [ -d "tests" ]; then
             python3 -m unittest discover -s tests -v || true
           fi
 
-      - name: APK Derle (assembleDebug)
+      - name: Gradle ile APK Derle
         run: |
           chmod +x gradlew || true
           if [ -f "./gradlew" ]; then
-            ./gradlew assembleDebug --stacktrace
+            ./gradlew :app:assembleDebug --no-daemon --stacktrace
           else
             gradle :app:assembleDebug --no-daemon --stacktrace
           fi
 
-      - name: APK Dosyasını Yükle (Artifact)
+      - name: Debug APK Yayınla (Artifacts)
         uses: actions/upload-artifact@v4
         with:
-          name: Spectre-Debug-APK
-          path: |
-            app/build/outputs/apk/debug/*.apk
-            build/app/outputs/flutter-apk/*.apk
-          if-no-files-found: warn
+          name: SPECTRE-Central-debug-APK
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
