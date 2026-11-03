@@ -1,4 +1,4 @@
-name: Build Spectre Central APK
+name: Build Spectre Mobile APK
 
 on:
   workflow_dispatch:
@@ -23,36 +23,29 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Gradle Kurulumu
-        uses: gradle/actions/setup-gradle@v4
+      - name: Flutter Ortamını Hazırla
+        uses: subosito/flutter-action@v2
         with:
-          gradle-version: '8.9'
+          channel: 'stable'
+          cache: true
 
-      - name: Android Lisanslarını Onayla
+      - name: Bağımlılıkları Kur ve APK Derle
         run: |
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-35" "build-tools;34.0.0"
-
-      - name: Dizin Yapısını Kontrol Et ve APK Derle
-        run: |
-          # Eğer kodlar bir alt klasördeyse oraya geç
-          if [ -d "spectre-central" ]; then
-            cd spectre-central
+          # pubspec.yaml neredeyse oraya geç
+          PROJECT_DIR=$(find . -name "pubspec.yaml" -exec dirname {} \; | head -n 1)
+          if [ -n "$PROJECT_DIR" ]; then
+            echo "Flutter kök dizini: $PROJECT_DIR"
+            cd "$PROJECT_DIR"
           fi
 
-          chmod +x gradlew || true
+          flutter pub get
+          flutter build apk --debug
 
-          if [ -f "./gradlew" ]; then
-            ./gradlew assembleDebug --no-daemon --info
-          else
-            gradle assembleDebug --no-daemon --info
-          fi
-
-      - name: Debug APK Yayınla (Artifacts)
+      - name: APK Dosyasını Çıktı Olarak Yükle (Artifact)
         uses: actions/upload-artifact@v4
         with:
-          name: SPECTRE-Central-debug-APK
+          name: SPECTRE-Mobile-debug-APK
           path: |
+            **/build/app/outputs/flutter-apk/*.apk
             **/build/outputs/apk/debug/*.apk
-            **/build/outputs/apk/*/*.apk
           if-no-files-found: error
