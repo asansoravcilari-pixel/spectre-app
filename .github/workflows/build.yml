@@ -38,6 +38,12 @@ jobs:
             cd "$PROJECT_DIR"
           fi
 
+          # Eksik android platform dosyalarını otomatik oluştur
+          if [ ! -d "android" ]; then
+            echo "Android platform klasörü bulunamadı, oluşturuluyor..."
+            flutter create . --platforms=android --org xyz.getnexuszero
+          fi
+
           flutter pub get
           flutter build apk --debug
 
