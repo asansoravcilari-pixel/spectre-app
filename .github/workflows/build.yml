@@ -1,88 +1,59 @@
-name: Build APK
+name: Build Spectre APK
 
 on:
-  push:
-    branches: [ "main", "ana" ]
   workflow_dispatch:
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: read
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
     steps:
-      - name: Checkout
+      - name: Kodu Çek
         uses: actions/checkout@v4
 
-      - name: Setup Java
+      - name: Java 17 Kurulumu
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '17'
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.24.0'
-          channel: 'stable'
-
-      - name: Pillow Kur
-        run: pip3 install pillow
-
-      - name: Android Altyapisi, Izinler ve Ikon Uretimi
+      - name: Python Ortamını Hazırla ve Pillow (PIL) Kur
         run: |
-          # Yalnizca android klasoru yoksa olustur, main.dart ve mevcut dosyalari asla silme
-          if [ ! -d "android" ]; then
-            flutter create . --project-name=spectre_app --platforms=android --org=com.spectre.app
+          python3 -m pip install --upgrade pip
+          python3 -m pip install Pillow
+
+      - name: Android SDK Kurulumu
+        uses: android-actions/setup-android@v3
+
+      - name: Android Platform ve Araçlarını Yükle
+        run: |
+          sdkmanager "platforms;android-35" "build-tools;34.0.0"
+
+      - name: Sunucu Onay Testleri
+        run: |
+          if [ -d "tests" ]; then
+            python3 -m unittest discover -s tests -v
+          else
+            echo "Test klasörü bulunamadı, atlanıyor."
           fi
 
-          # Webview ve HTTP baglantisi (cleartext) iznini ekle
-          python3 -c '
-          path = "android/app/src/main/AndroidManifest.xml"
-          with open(path, "r", encoding="utf-8") as f:
-              c = f.read()
-          perms = """
-              <uses-permission android:name="android.permission.INTERNET"/>
-              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-          """
-          if "android.permission.INTERNET" not in c:
-              c = c.replace("<application", perms + "\n    <application")
-          if "usesCleartextTraffic" not in c:
-              c = c.replace("<application", "<application android:usesCleartextTraffic=\"true\"")
-          with open(path, "w", encoding="utf-8") as f:
-              f.write(c)
-          '
+      - name: Gradle Kurulumu
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
 
-          # Ozel SPECTRE Neon AI Uygulama Ikonu Uret
-          python3 -c '
-          import os
-          from PIL import Image, ImageDraw
+      - name: APK Derle ve Hata Ayıkla
+        run: gradle --no-daemon :app:assembleDebug :app:lintDebug
 
-          sizes = {
-              "mipmap-mdpi": 48,
-              "mipmap-hdpi": 72,
-              "mipmap-xhdpi": 96,
-              "mipmap-xxhdpi": 144,
-              "mipmap-xxxhdpi": 192
-          }
-          res_dir = "android/app/src/main/res"
-          for folder, size in sizes.items():
-              target_dir = os.path.join(res_dir, folder)
-              os.makedirs(target_dir, exist_ok=True)
-              img = Image.new("RGBA", (size, size), (15, 21, 39, 255))
-              draw = ImageDraw.Draw(img)
-              margin = int(size * 0.1)
-              draw.ellipse([margin, margin, size - margin, size - margin], outline=(108, 92, 231, 255), width=max(2, int(size * 0.05)))
-              inner_margin = int(size * 0.3)
-              draw.ellipse([inner_margin, inner_margin, size - inner_margin, size - inner_margin], fill=(162, 155, 254, 255))
-              img.save(os.path.join(target_dir, "ic_launcher.png"))
-          '
-
-          flutter pub get
-
-      - name: Build APK
-        run: flutter build apk --debug
-
-      - name: Upload APK
+      - name: APK Dosyasını Yayınla (Artifacts)
         uses: actions/upload-artifact@v4
         with:
-          name: Spectre-Mobile-APK
-          path: build/app/outputs/flutter-apk/app-debug.apk
+          name: SPECTRE-Central-debug-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
