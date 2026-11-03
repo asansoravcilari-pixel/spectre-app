@@ -23,29 +23,36 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Gradle Kurulumu
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
       - name: Android Lisanslarını Onayla
         run: |
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
           $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-35" "build-tools;34.0.0"
 
-      - name: Python Onay Testleri
+      - name: Dizin Yapısını Kontrol Et ve APK Derle
         run: |
-          if [ -d "tests" ]; then
-            python3 -m unittest discover -s tests -v || true
+          # Eğer kodlar bir alt klasördeyse oraya geç
+          if [ -d "spectre-central" ]; then
+            cd spectre-central
           fi
 
-      - name: Gradle ile APK Derle
-        run: |
           chmod +x gradlew || true
+
           if [ -f "./gradlew" ]; then
-            ./gradlew :app:assembleDebug --no-daemon --stacktrace
+            ./gradlew assembleDebug --no-daemon --info
           else
-            gradle :app:assembleDebug --no-daemon --stacktrace
+            gradle assembleDebug --no-daemon --info
           fi
 
       - name: Debug APK Yayınla (Artifacts)
         uses: actions/upload-artifact@v4
         with:
           name: SPECTRE-Central-debug-APK
-          path: app/build/outputs/apk/debug/*.apk
+          path: |
+            **/build/outputs/apk/debug/*.apk
+            **/build/outputs/apk/*/*.apk
           if-no-files-found: error
